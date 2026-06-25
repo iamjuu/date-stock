@@ -1,11 +1,12 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { Document, Page, Text, View, StyleSheet, PDFDownloadLink } from '@react-pdf/renderer';
+import { Document, Page, Text, View, StyleSheet, PDFDownloadLink, pdf } from '@react-pdf/renderer';
 
 interface Product {
   _id: string;
   name: string;
+  purchasePrice: number;
   sellingPrice: number;
   quantity: number;
   category?: { name: string };
@@ -74,6 +75,24 @@ export default function BillingPage() {
   const subtotal = items.reduce((sum, i) => sum + i.lineTotal, 0);
   const totalDiscount = discountType === 'percentage' ? subtotal * (discount / 100) : discount;
   const total = Math.max(0, subtotal - totalDiscount);
+  const totalCost = items.reduce((sum, i) => sum + i.purchasePrice * i.qty, 0);
+  const profit = total - totalCost;
+
+  const handlePrint = async () => {
+    const blob = await pdf(<BillDocument />).toBlob();
+    const url = URL.createObjectURL(blob);
+    const iframe = document.createElement('iframe');
+
+    iframe.style.display = 'none';
+    iframe.src = url;
+    document.body.appendChild(iframe);
+
+    iframe.onload = () => {
+      iframe.contentWindow?.focus();
+      iframe.contentWindow?.print();
+      URL.revokeObjectURL(url);
+    };
+  };
 
   const BillDocument = () => (
     <Document>
@@ -119,6 +138,10 @@ export default function BillingPage() {
               Discount ({discountType === 'percentage' ? `${discount}%` : '$'})
             </Text>
             <Text style={styles.summaryValue}>-${totalDiscount.toFixed(2)}</Text>
+          </View>
+          <View style={styles.summaryRow}>
+            <Text style={styles.summaryLabel}>Profit</Text>
+            <Text style={styles.summaryValue}>${profit.toFixed(2)}</Text>
           </View>
           <View style={styles.totalBox}>
             <Text style={styles.totalLabel}>Grand Total</Text>
@@ -259,6 +282,16 @@ export default function BillingPage() {
               <dt>Discount</dt>
               <dd>-${totalDiscount.toFixed(2)}</dd>
             </div>
+            <div className="flex justify-between text-slate-600">
+              <dt>Cost</dt>
+              <dd>${totalCost.toFixed(2)}</dd>
+            </div>
+            <div className="flex justify-between text-slate-600">
+              <dt>Profit</dt>
+              <dd className={profit >= 0 ? 'text-emerald-600' : 'text-red-600'}>
+                ${profit.toFixed(2)}
+              </dd>
+            </div>
             <div className="flex justify-between border-t border-slate-100 pt-2 text-base font-bold text-slate-900">
               <dt>Total</dt>
               <dd>${total.toFixed(2)}</dd>
@@ -267,7 +300,7 @@ export default function BillingPage() {
         </div>
       </div>
 
-      <div className="mt-6">
+      <div className="mt-6 flex flex-wrap gap-3">
         <PDFDownloadLink
           document={<BillDocument />}
           fileName="bill.pdf"
@@ -275,6 +308,13 @@ export default function BillingPage() {
         >
           Download PDF Bill
         </PDFDownloadLink>
+        <button
+          type="button"
+          onClick={handlePrint}
+          className="btn-primary inline-flex px-6 py-3"
+        >
+          Print Bill
+        </button>
       </div>
     </div>
   );

@@ -1,6 +1,14 @@
 'use client';
 
 import Link from 'next/link';
+import { useEffect, useState } from 'react';
+import { DEFAULT_USERNAME } from '@/lib/auth';
+
+interface Product {
+  purchasePrice: number;
+  sellingPrice: number;
+  quantity: number;
+}
 
 const quickActions = [
   {
@@ -34,6 +42,23 @@ const quickActions = [
 ];
 
 export default function DashboardPage() {
+  const [products, setProducts] = useState<Product[]>([]);
+
+  useEffect(() => {
+    const fetchProducts = async () => {
+      const res = await fetch('/api/products?page=1&limit=1000');
+      const data = await res.json().catch(() => null);
+      setProducts(data?.products ?? []);
+    };
+
+    fetchProducts();
+  }, []);
+
+  const inventoryProfit = products.reduce(
+    (sum, product) => sum + (product.sellingPrice - product.purchasePrice) * product.quantity,
+    0
+  );
+
   return (
     <div className="mx-auto max-w-6xl">
       <div className="mb-8">
@@ -41,12 +66,46 @@ export default function DashboardPage() {
         <p className="mt-1 text-slate-500">Welcome back. Here&apos;s an overview of your billing app.</p>
       </div>
 
+      {/* Profile */}
+      <div className="card mb-8">
+        <div className="flex flex-col gap-5 sm:flex-row sm:items-center sm:justify-between">
+          <div className="flex items-center gap-4">
+            <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-xl bg-brand-600 text-lg font-bold text-white">
+              A
+            </div>
+            <div>
+              <h2 className="text-lg font-semibold text-slate-900">Admin Profile</h2>
+              <p className="mt-1 text-sm text-slate-500">{DEFAULT_USERNAME}</p>
+            </div>
+          </div>
+          <div className="grid gap-3 text-sm sm:grid-cols-3">
+            <div>
+              <p className="text-xs font-medium uppercase tracking-wide text-slate-400">Role</p>
+              <p className="mt-1 font-semibold text-slate-900">Administrator</p>
+            </div>
+            <div>
+              <p className="text-xs font-medium uppercase tracking-wide text-slate-400">Access</p>
+              <p className="mt-1 font-semibold text-slate-900">Full Control</p>
+            </div>
+            <div>
+              <p className="text-xs font-medium uppercase tracking-wide text-slate-400">Status</p>
+              <p className="mt-1 font-semibold text-emerald-600">Active</p>
+            </div>
+          </div>
+        </div>
+      </div>
+
       {/* Stats row */}
-      <div className="mb-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+      <div className="mb-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-5">
         {[
           { label: 'Quick Action', value: 'New Bill', sub: 'Start billing now' },
           { label: 'Products', value: 'Manage', sub: 'Inventory & pricing' },
           { label: 'Categories', value: 'Organize', sub: 'Group your items' },
+          {
+            label: 'Profit',
+            value: `$${inventoryProfit.toFixed(2)}`,
+            sub: 'Estimated inventory profit',
+          },
           { label: 'Settings', value: 'Configure', sub: 'Shop info & bills' },
         ].map((stat) => (
           <div key={stat.label} className="card">
