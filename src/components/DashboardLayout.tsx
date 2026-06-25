@@ -1,6 +1,7 @@
 'use client';
 
 import Link from 'next/link';
+import { useState } from 'react';
 import { usePathname, useRouter } from 'next/navigation';
 
 const navItems = [
@@ -14,11 +15,17 @@ const navItems = [
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const router = useRouter();
+  const [loggingOut, setLoggingOut] = useState(false);
 
   const handleLogout = async () => {
-    await fetch('/api/auth/logout', { method: 'POST' });
-    router.push('/login');
-    router.refresh();
+    setLoggingOut(true);
+    try {
+      await fetch('/api/auth/logout', { method: 'POST' });
+      router.push('/login');
+      router.refresh();
+    } finally {
+      setLoggingOut(false);
+    }
   };
 
   return (
@@ -57,10 +64,11 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         <div className="border-t border-slate-100 p-4">
           <button
             onClick={handleLogout}
-            className="flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium text-slate-600 transition hover:bg-red-50 hover:text-red-600"
+            disabled={loggingOut}
+            className="flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium text-slate-600 transition hover:bg-red-50 hover:text-red-600 disabled:cursor-not-allowed disabled:opacity-60"
           >
             <span className="text-base opacity-70">⎋</span>
-            Sign out
+            {loggingOut ? 'Signing out...' : 'Sign out'}
           </button>
         </div>
       </aside>
@@ -73,8 +81,12 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
           </div>
           <span className="font-semibold">BillFlow</span>
         </div>
-        <button onClick={handleLogout} className="text-sm text-slate-500 hover:text-red-600">
-          Sign out
+        <button
+          onClick={handleLogout}
+          disabled={loggingOut}
+          className="text-sm text-slate-500 hover:text-red-600 disabled:cursor-not-allowed disabled:opacity-60"
+        >
+          {loggingOut ? 'Signing out...' : 'Sign out'}
         </button>
       </div>
 

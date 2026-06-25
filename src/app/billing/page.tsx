@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { Document, Page, Text, View, StyleSheet, PDFDownloadLink, pdf } from '@react-pdf/renderer';
+import { Document, Page, Text, View, StyleSheet, pdf } from '@react-pdf/renderer';
 
 interface Product {
   _id: string;
@@ -24,6 +24,8 @@ export default function BillingPage() {
   const [discountType, setDiscountType] = useState<'amount' | 'percentage'>('amount');
   const [shop, setShop] = useState<{ name: string; contactNumber: string } | null>(null);
   const [loading, setLoading] = useState(true);
+  const [downloading, setDownloading] = useState(false);
+  const [printing, setPrinting] = useState(false);
   const [dbError, setDbError] = useState('');
 
   useEffect(() => {
@@ -78,20 +80,42 @@ export default function BillingPage() {
   const totalCost = items.reduce((sum, i) => sum + i.purchasePrice * i.qty, 0);
   const profit = total - totalCost;
 
-  const handlePrint = async () => {
-    const blob = await pdf(<BillDocument />).toBlob();
-    const url = URL.createObjectURL(blob);
-    const iframe = document.createElement('iframe');
+  const handleDownload = async () => {
+    setDownloading(true);
+    try {
+      const blob = await pdf(<BillDocument />).toBlob();
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
 
-    iframe.style.display = 'none';
-    iframe.src = url;
-    document.body.appendChild(iframe);
-
-    iframe.onload = () => {
-      iframe.contentWindow?.focus();
-      iframe.contentWindow?.print();
+      link.href = url;
+      link.download = 'bill.pdf';
+      link.click();
       URL.revokeObjectURL(url);
-    };
+    } finally {
+      setDownloading(false);
+    }
+  };
+
+  const handlePrint = async () => {
+    setPrinting(true);
+    try {
+      const blob = await pdf(<BillDocument />).toBlob();
+      const url = URL.createObjectURL(blob);
+      const iframe = document.createElement('iframe');
+
+      iframe.style.display = 'none';
+      iframe.src = url;
+      document.body.appendChild(iframe);
+
+      iframe.onload = () => {
+        iframe.contentWindow?.focus();
+        iframe.contentWindow?.print();
+        URL.revokeObjectURL(url);
+        setPrinting(false);
+      };
+    } catch {
+      setPrinting(false);
+    }
   };
 
   const BillDocument = () => (
@@ -301,19 +325,21 @@ export default function BillingPage() {
       </div>
 
       <div className="mt-6 flex flex-wrap gap-3">
-        <PDFDownloadLink
-          document={<BillDocument />}
-          fileName="bill.pdf"
+        <button
+          type="button"
+          onClick={handleDownload}
+          disabled={downloading}
           className="btn-primary inline-flex px-6 py-3 no-underline"
         >
-          Download PDF Bill
-        </PDFDownloadLink>
+          {downloading ? 'Preparing PDF...' : 'Download PDF Bill'}
+        </button>
         <button
           type="button"
           onClick={handlePrint}
+          disabled={printing}
           className="btn-primary inline-flex px-6 py-3"
         >
-          Print Bill
+          {printing ? 'Preparing Print...' : 'Print Bill'}
         </button>
       </div>
     </div>

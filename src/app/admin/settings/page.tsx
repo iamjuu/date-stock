@@ -6,10 +6,16 @@ import ShopInfoForm from '@/components/ShopInfoForm';
 export default function SettingsAdmin() {
   const [discountType, setDiscountType] = useState<'amount' | 'percentage'>('amount');
   const [saved, setSaved] = useState(false);
+  const [savingPreference, setSavingPreference] = useState(false);
 
   const handleSaveDiscountType = async () => {
-    setSaved(true);
-    setTimeout(() => setSaved(false), 2000);
+    setSavingPreference(true);
+    try {
+      setSaved(true);
+      setTimeout(() => setSaved(false), 2000);
+    } finally {
+      setSavingPreference(false);
+    }
   };
 
 
@@ -35,8 +41,8 @@ export default function SettingsAdmin() {
             <option value="amount">Flat Amount Discount</option>
             <option value="percentage">Percentage Discount</option>
           </select>
-          <button onClick={handleSaveDiscountType} className="btn-primary">
-            Save Preference
+          <button onClick={handleSaveDiscountType} disabled={savingPreference} className="btn-primary">
+            {savingPreference ? 'Saving...' : 'Save Preference'}
           </button>
           {saved && <span className="text-sm font-medium text-emerald-600">Updated!</span>}
         </div>

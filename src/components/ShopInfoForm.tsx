@@ -6,6 +6,7 @@ export default function ShopInfoForm() {
   const [name, setName] = useState('');
   const [contactNumber, setContactNumber] = useState('');
   const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
   const [error, setError] = useState('');
 
@@ -36,17 +37,23 @@ export default function ShopInfoForm() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
-    const res = await fetch('/api/shopInfo', {
-      method: 'PUT',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ name, contactNumber }),
-    });
-    const data = await res.json().catch(() => null);
-    if (res.ok) {
-      setSaved(true);
-      setTimeout(() => setSaved(false), 2000);
-    } else {
-      setError(data?.error || 'Failed to update shop info');
+    setSaving(true);
+
+    try {
+      const res = await fetch('/api/shopInfo', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name, contactNumber }),
+      });
+      const data = await res.json().catch(() => null);
+      if (res.ok) {
+        setSaved(true);
+        setTimeout(() => setSaved(false), 2000);
+      } else {
+        setError(data?.error || 'Failed to update shop info');
+      }
+    } finally {
+      setSaving(false);
     }
   };
 
@@ -82,8 +89,8 @@ export default function ShopInfoForm() {
           />
         </div>
         <div className="flex items-center gap-3">
-          <button type="submit" className="btn-primary">
-            Save Shop Info
+          <button type="submit" disabled={saving} className="btn-primary">
+            {saving ? 'Saving...' : 'Save Shop Info'}
           </button>
           {saved && <span className="text-sm font-medium text-emerald-600">Saved!</span>}
         </div>

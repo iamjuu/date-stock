@@ -27,6 +27,9 @@ export default function ProductsAdmin() {
   const [dbError, setDbError] = useState('');
   const [savedMessage, setSavedMessage] = useState('');
   const [purchaseSaved, setPurchaseSaved] = useState(false);
+  const [savingProduct, setSavingProduct] = useState(false);
+  const [savingPurchase, setSavingPurchase] = useState(false);
+  const [deletingProductId, setDeletingProductId] = useState<string | null>(null);
   const [editingProductId, setEditingProductId] = useState<string | null>(null);
   const [form, setForm] = useState({
     name: '',
@@ -160,24 +163,30 @@ export default function ProductsAdmin() {
       return;
     }
 
-    const res = await fetch(editingProductId ? `/api/products/${editingProductId}` : '/api/products', {
-      method: editingProductId ? 'PUT' : 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(payload),
-    });
-    const data = await res.json().catch(() => null);
+    setSavingProduct(true);
 
-    if (!res.ok) {
-      setDbError(data?.error || (editingProductId ? 'Failed to update product.' : 'Failed to add product.'));
-      return;
+    try {
+      const res = await fetch(editingProductId ? `/api/products/${editingProductId}` : '/api/products', {
+        method: editingProductId ? 'PUT' : 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      });
+      const data = await res.json().catch(() => null);
+
+      if (!res.ok) {
+        setDbError(data?.error || (editingProductId ? 'Failed to update product.' : 'Failed to add product.'));
+        return;
+      }
+
+      const message = editingProductId ? 'Product updated' : 'Product added';
+      resetProductForm();
+      setSavedMessage(message);
+      setPage(1);
+      await fetchProducts();
+      await fetchProductOptions();
+    } finally {
+      setSavingProduct(false);
     }
-
-    const message = editingProductId ? 'Product updated' : 'Product added';
-    resetProductForm();
-    setSavedMessage(message);
-    setPage(1);
-    fetchProducts();
-    fetchProductOptions();
   };
 
   const addPurchaseEntry = async (e: React.FormEvent) => {
@@ -203,30 +212,41 @@ export default function ProductsAdmin() {
       return;
     }
 
-    const res = await fetch(`/api/products/${purchaseForm.productId}`, {
-      method: 'PATCH',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ quantityToAdd, purchasePrice }),
-    });
-    const data = await res.json().catch(() => null);
+    setSavingPurchase(true);
 
-    if (!res.ok) {
-      setDbError(data?.error || 'Failed to add purchase entry.');
-      return;
+    try {
+      const res = await fetch(`/api/products/${purchaseForm.productId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ quantityToAdd, purchasePrice }),
+      });
+      const data = await res.json().catch(() => null);
+
+      if (!res.ok) {
+        setDbError(data?.error || 'Failed to add purchase entry.');
+        return;
+      }
+
+      setPurchaseForm({ productId: '', quantityToAdd: '', purchasePrice: '' });
+      setPurchaseSaved(true);
+      await fetchProducts();
+      await fetchProductOptions();
+    } finally {
+      setSavingPurchase(false);
     }
-
-    setPurchaseForm({ productId: '', quantityToAdd: '', purchasePrice: '' });
-    setPurchaseSaved(true);
-    fetchProducts();
-    fetchProductOptions();
   };
 
   const handleDelete = async (id: string) => {
     if (!confirm('Delete this product?')) return;
-    await fetch(`/api/products/${id}`, { method: 'DELETE' });
-    fetchProducts();
-    fetchProductOptions();
-    if (editingProductId === id) resetProductForm();
+    setDeletingProductId(id);
+    try {
+      await fetch(`/api/products/${id}`, { method: 'DELETE' });
+      await fetchProducts();
+      await fetchProductOptions();
+      if (editingProductId === id) resetProductForm();
+    } finally {
+      setDeletingProductId(null);
+    }
   };
 
   return (
@@ -329,8 +349,8 @@ export default function ProductsAdmin() {
             />
           </div>
           <div className="flex items-end gap-3 xl:col-span-4">
-            <button type="submit" className="btn-primary" disabled={categories.length === 0}>
-              {editingProductId ? 'Update Product' : 'Add Product'}
+            <button type="submit" className="btn-primary" disabled={categories.length === 0 || savingProduct}>
+              {savingProduct ? 'Saving...' : editingProductId ? 'Update Product' : 'Add Product'}
             </button>
             {editingProductId && (
               <button type="button" onClick={resetProductForm} className="btn-secondary">
@@ -390,8 +410,8 @@ export default function ProductsAdmin() {
             />
           </div>
           <div className="flex items-end">
-            <button type="submit" className="btn-primary" disabled={productOptions.length === 0}>
-              Add Stock
+            <button type="submit" className="btn-primary" disabled={productOptions.length === 0 || savingPurchase}>
+              {savingPurchase ? 'Adding...' : 'Add Stock'}
             </button>
           </div>
         </form>
@@ -436,9 +456,10 @@ export default function ProductsAdmin() {
                           </button>
                           <button
                             onClick={() => handleDelete(p._id)}
-                            className="rounded-lg bg-red-50 px-3 py-1.5 text-xs font-medium text-red-600 hover:bg-red-100"
+                            disabled={deletingProductId === p._id}
+                            className="rounded-lg bg-red-50 px-3 py-1.5 text-xs font-medium text-red-600 hover:bg-red-100 disabled:cursor-not-allowed disabled:opacity-60"
                           >
-                            Delete
+                            {deletingProductId === p._id ? 'Deleting...' : 'Delete'}
                           </button>
                         </div>
                       </td>

@@ -11,6 +11,8 @@ export default function CategoriesAdmin() {
   const [categories, setCategories] = useState<Category[]>([]);
   const [name, setName] = useState('');
   const [loading, setLoading] = useState(true);
+  const [adding, setAdding] = useState(false);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
   const [dbError, setDbError] = useState('');
 
   useEffect(() => {
@@ -46,34 +48,44 @@ export default function CategoriesAdmin() {
     e.preventDefault();
     if (!name.trim()) return;
     setDbError('');
+    setAdding(true);
 
-    const res = await fetch('/api/categories', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ name: name.trim() }),
-    });
-    const data = await res.json().catch(() => null);
-    if (!res.ok) {
-      setDbError(data?.error || 'Failed to add category');
-      return;
+    try {
+      const res = await fetch('/api/categories', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name: name.trim() }),
+      });
+      const data = await res.json().catch(() => null);
+      if (!res.ok) {
+        setDbError(data?.error || 'Failed to add category');
+        return;
+      }
+      setName('');
+      await fetchCategories();
+    } finally {
+      setAdding(false);
     }
-    setName('');
-    fetchCategories();
   };
 
   const handleDelete = async (category: Category) => {
     if (!confirm(`Delete category "${category.name}"?`)) return;
     setDbError('');
+    setDeletingId(category._id);
 
-    const res = await fetch(`/api/categories/${category._id}`, { method: 'DELETE' });
-    const data = await res.json().catch(() => null);
+    try {
+      const res = await fetch(`/api/categories/${category._id}`, { method: 'DELETE' });
+      const data = await res.json().catch(() => null);
 
-    if (!res.ok) {
-      setDbError(data?.error || 'Failed to delete category');
-      return;
+      if (!res.ok) {
+        setDbError(data?.error || 'Failed to delete category');
+        return;
+      }
+
+      await fetchCategories();
+    } finally {
+      setDeletingId(null);
     }
-
-    fetchCategories();
   };
 
   return (
@@ -99,8 +111,8 @@ export default function CategoriesAdmin() {
             onChange={(e) => setName(e.target.value)}
             className="input-field flex-1"
           />
-          <button type="submit" className="btn-primary shrink-0">
-            Add
+          <button type="submit" disabled={adding} className="btn-primary shrink-0">
+            {adding ? 'Adding...' : 'Add'}
           </button>
         </form>
       </div>
@@ -121,9 +133,10 @@ export default function CategoriesAdmin() {
                 </div>
                 <button
                   onClick={() => handleDelete(cat)}
-                  className="rounded-lg bg-red-50 px-3 py-1.5 text-xs font-medium text-red-600 hover:bg-red-100"
+                  disabled={deletingId === cat._id}
+                  className="rounded-lg bg-red-50 px-3 py-1.5 text-xs font-medium text-red-600 hover:bg-red-100 disabled:cursor-not-allowed disabled:opacity-60"
                 >
-                  Delete
+                  {deletingId === cat._id ? 'Deleting...' : 'Delete'}
                 </button>
               </li>
             ))}
